@@ -4,33 +4,33 @@
         /**
          * Backup class serves to backup websites and databases on a server
          *
-         * @var string $websites_dir   contains path to the directory with websites (i.e. ../www/ or ../public-html/)
-         * @var string $backup_storage contains path to the backup directory (you can define it yourself)
+         * @var string $backup_dir     contains path to the directory that needs to be backup
+         * @var string $backup_storage contains path to the directory that will store backup files
          *
          * @var string $DB_host database host
          * @var string $DB_user database user
          * @var string $DB_pass database pass
          *
-         * @var string $date_format  contains current date in DateTime format (YYYY-mm-dd)
-         * @var string $backup_name  file or archive name that will store backup data (backup_YYYY-mm-dd)
-         * @var int    $storage_time contains number of days to store backup files
+         * @var string $date_format     contains current date in DateTime format (YYYY-mm-dd)
+         * @var string $backup_prefix   file or archive name that will store backup data (backup_YYYY-mm-dd)
+         * @var int    $days_of_storage contains number of days to store backup files
          */
 
-        private $websites_dir = 'home/www/';
-        private $backup_storage = 'home/backup/';
+        private $backup_dir = '';
+        private $backup_storage = '';
 
         private $DB_host = 'localhost';
         private $DB_user = 'root';
         private $DB_pass = '';
 
         protected $date_format = null;
-        protected $backup_name = 'backup_';
-        protected $storage_time  = 7;
+        protected $backup_prefix = 'backup_';
+        protected $days_of_storage  = 7;
 
         public function __construct()
         {
             $this->date_format = date('Y-m-d');
-            $this->backup_name = $this->backup_name . $this->date_format;
+            $this->backup_prefix = $this->backup_prefix . $this->date_format;
         }
 
         public function run() {
@@ -40,33 +40,92 @@
         }
 
         /**
+         * Set path to the directory that needs to be backup
+         *
+         * @param string $path
+         */
+        public function set_backup_dir($path)
+        {
+            if ($path != '')
+                $this->backup_dir = $path;
+        }
+
+        /**
+         * Set path to the directory that will store backup files
+         * @param string $path
+         */
+        public function set_backup_storage($path)
+        {
+            if ($path != '')
+                $this->backup_storage = $path;
+        }
+
+        /**
+         * Check $backup_dir & $backup_storage
+         *
+         * @throws Exception if paths are not defined
+         */
+        private function check_paths()
+        {
+            if ($this->backup_dir == '')
+                throw new \Exception("Error: Define path to the directory that needs to be backup by calling method set_backup_dir('/your/path/'); before run();");
+
+            if ($this->backup_storage == '')
+                throw new \Exception("Error: Define path to the directory that will store backup files by calling method set_backup_storage('/your/path/'); before run();");
+        }
+
+        /**
+         * Set DataBase credentials
+         *
+         * @param string $host Contains database host
+         * @param string $user Contains database user
+         * @param string $pass Contains database password
+         */
+        public function db_credentials($host, $user, $pass)
+        {
+            $this->DB_host = $host;
+            $this->DB_user = $user;
+            $this->DB_pass = $pass;
+        }
+
+        /**
          * Defines filename, creates backup of all databases and saves it to $filename.sql inside $backup_storage
-         * Returns true if success
+         *
+         * @return boolean true if success
          */
         private function db ()
         {
-            $filename = $this->backup_name .'.sql';
+            $filename = $this->backup_prefix .'.sql';
             $filepath = $this->backup_storage . $filename;
 
             $credential = '--user '. $this->DB_user .' --password="'. $this->DB_pass .'" --host '. $this->DB_host;
 
             exec('mysqldump '. $credential .'  --all-databases  > '. $filepath, $output, $response);
 
-            if ($response == 0) return true;
+            if ($response == 0)
+                return true;
         }
 
         /**
-         * Defines archive, creates backup of all directories inside $websites_dir and saves it to $filename.tar.gz inside $backup_storage
-         * Returns true if success
+         * Defines archive, creates backup of all directories inside $backup_dir and saves it to $filename.tar.gz inside $backup_storage
+         *
+         * @return boolean true if success
          */
         private function websites ()
         {
-            $filename = $this->backup_name .'.tar.gz';
+            try {
+                $this->check_paths();
+            } catch (\Exception $e) {
+                die($e->getMessage());
+            }
+
+            $filename = $this->backup_prefix .'.tar.gz';
             $filepath = $this->backup_storage . $filename;
 
-            exec('tar -cvf '. $filepath .' '. $this->websites_dir .'*', $output, $response);
+            exec('tar -cvf '. $filepath .' '. $this->backup_dir .'*', $output, $response);
 
-            if ($response == 0) return true;
+            if ($response == 0)
+                return true;
         }
 
         /**
@@ -87,13 +146,17 @@
                 $now = new DateTime();
                 $diff = $date->diff($now)->format("%d");
 
-                if ($diff > $this->storage_time) unlink($this->backup_storage . $file);
+                if ($diff > $this->days_of_storage)
+                    unlink($this->backup_storage . $file);
             }
         }
 
     }
 
     $backup = new Backup;
+    $backup->set_backup_dir('/home/www/');
+    $backup->set_backup_storage('/home/www/backup/');
+    $backup->db_credentials('localhost', 'root', 'pass');
     $backup->run();
 
 ?>
