@@ -18,6 +18,7 @@ class Backup
      */
 
     private $backup_dir = '';
+    private $exclude_dirs = '';
     private $backup_storage = '';
 
     private $DB_host = 'localhost';
@@ -36,8 +37,8 @@ class Backup
 
     public function run() {
         try {
-            $this->db();
             $this->check_paths();
+            $this->db();
             $this->websites();
             $this->remove_old();
         } catch (\Exception $e) {
@@ -50,10 +51,12 @@ class Backup
      *
      * @param string $path
      */
-    public function set_backup_dir($path)
+    public function set_backup_dir($path, $exclude = [])
     {
         if ($path != '')
             $this->backup_dir = $path;
+
+        $this->exclude_dirs = $exclude;
     }
 
     /**
@@ -79,6 +82,10 @@ class Backup
 
         if ($this->backup_storage == '')
             throw new \Exception("Define path to the directory that will store backup files by calling method set_backup_storage('/your/path/'); before run();");
+
+        if (!is_dir($this->backup_storage)) {
+            mkdir($this->backup_storage);
+        }
     }
 
     /**
@@ -109,8 +116,11 @@ class Backup
 
         exec('mysqldump '. $credential .'  --all-databases  > '. $filepath, $output, $response);
 
-        if ($response != 1)
-            throw new \Exception("Cannot create files backup. Please, check your path in set_backup_dir() method.");
+        if ($response == 0):
+            return true;
+        else:
+            throw new \Exception("Cannot create database backup. Please, check your database credentials in db_credentials() method.");
+        endif;
     }
 
     /**
@@ -122,11 +132,19 @@ class Backup
     {
         $filename = $this->backup_prefix .'.tar.gz';
         $filepath = $this->backup_storage . $filename;
+        $exclude_rule = '';
 
-        exec('tar -cvf '. $filepath .' '. $this->backup_dir .'*', $output, $response);
+        foreach ($this->exclude_dirs as $dir) {
+            $exclude_rule .= ' --exclude=' . $this->backup_dir . $dir;
+        }
 
-        if ($response != 0)
+        exec('tar'. $exclude_rule .' -cvf '. $filepath .' '. $this->backup_dir .'*', $output, $response);
+
+        if ($response == 0):
+            return true;
+        else:
             throw new \Exception("Cannot create files backup. Please, check your path in set_backup_dir() method.");
+        endif;
     }
 
     /**
@@ -136,11 +154,11 @@ class Backup
      */
     private function remove_old()
     {
-        if (is_dir($this->backup_storage)) {
+        if (is_dir($this->backup_storage)):
             $backup_files = scandir($this->backup_storage);
-        } else {
+        else:
             throw new \Exception("Backup storage directory is missing or cannot be scanned. Please, check your path in set_backup_storage() method.");
-        }
+        endif;
 
         foreach ($backup_files as $file)
         {
@@ -160,10 +178,15 @@ class Backup
 
 }
 
+$exclude = array(
+    'unnecessary _dir',
+    'example.com'
+);
+
 $backup = new Backup;
-$backup->set_backup_dir('/home/www/');
-$backup->set_backup_storage('/home/www/backup/');
-$backup->db_credentials('localhost', 'root', '');
+$backup->set_backup_dir('/home/www/', $exclude);
+$backup->set_backup_storage('/home/backup/');
+$backup->db_credentials('localhost', 'root', 'pass');
 $backup->run();
 
 ?>
