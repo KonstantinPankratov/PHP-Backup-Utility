@@ -3,7 +3,7 @@
 #### What does it can?
 
 * Backup websites and other files on server
-* Backup database
+* Bulk database backup
 
 ## Usage
 
@@ -11,12 +11,13 @@
 $backup = new Backup;
 
 $exclude = array( // Define directories to exclude
-    'unnecessary _dir',
-    'example.com'
+    '/bin/',
+    '/var/www/example.com'
 );
 
-$backup->set_backup_dir('/home/www/', $exclude);  // Define path to the directory that needs to be backup
-$backup->set_backup_storage('/home/www/backup/'); // Define path to the directory where backups will be stored
+$backup->exclude_dirs($exclude); // Set paths to exclude
+$backup->set_backup_dir('/home/www/');  // Set path to the directory that needs to be backup
+$backup->set_backup_storage('/home/www/backup/'); // Set path to the directory where backups will be stored
 $backup->db_credentials('localhost', 'root', 'pass'); // Your database credentials
 
 $backup->run(); // run backup
