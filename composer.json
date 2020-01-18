@@ -1,0 +1,17 @@
+{
+    "name": "kopa/php-backup-utility",
+    "require": {
+        "phpunit/phpunit": "^8.5"
+    },
+    "autoload":{
+        "classmap": [
+            "src/backup.php"
+        ]
+    },
+    "authors": [
+        {
+            "name": "Kopa",
+            "email": "hello@kopa.pw"
+        }
+    ]
+}
